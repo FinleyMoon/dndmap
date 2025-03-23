@@ -21,7 +21,9 @@ There is no concrete roadmap, but I would like to implement some of the next fea
 
 If you want to contribute, feel free to open issues and submit code and ideas
 
-Some known bugs include the incorrect rendering of the grid after a save is imported and the misalignment between the character token and the cursor then the map is rotated
+Some known bugs include
+- incorrect rendering of the grid after a save is imported
+- misalignment between the character token and the cursor when the map is rotated
 
 P.S.
 This is my very first project and I don't have any experience writing code or maintaining a github anything. The first iteration of this website was largely written by AI under my strict supervision, but going forward I intend to do a lot more stuff manually

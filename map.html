@@ -1,0 +1,1179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>DnD Map</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Boldonse&display=swap" rel="stylesheet">
+    <style>
+       /* --- General Styles --- */
+        body {
+            font-family: sans-serif;
+            margin: 0;
+            background-color: #48314D;
+            color: #f0f0f0;
+            display: flex;
+            flex-direction: row; /* Default: Horizontal layout */
+            align-items: flex-start;
+            padding: 20px;
+            gap: 20px;
+            min-height: 100vh; /* Ensure body takes at least full viewport height */
+        }
+
+        /* --- REMOVED Mobile Styles --- */
+
+        .controls {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            padding: 15px;
+            background-color: #36223F;
+            border: 1px solid #5E3F6B;
+            border-radius: 5px;
+            width: 250px;
+            box-sizing: border-box;
+        }
+
+        .controls > div {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            width: 100%;
+        }
+
+        .controls label {
+            color: #e0e0e0;
+            margin-bottom: 5px;
+            display: block;
+        }
+
+        .controls input[type="number"] {
+            background-color: #48314D;
+            color: #e0e0e0;
+            border: 1px solid #5E3F6B;
+            padding: 8px;
+            border-radius: 3px;
+            width: 100%;
+            box-sizing: border-box;
+            margin-top: 5px;
+            margin-bottom: 10px;
+        }
+
+        .upload-button, button {
+            background-color: #5E3F6B;
+            color: #f0f0f0;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: background-color: 0.3s ease;
+            display: inline-block;
+            text-align: center;
+            margin-bottom: 5px;
+        }
+
+        .upload-button:hover, button:hover {
+            background-color: #735880;
+        }
+
+        input[type="file"] {
+            width: 0.1px;
+            height: 0.1px;
+            opacity: 0;
+            overflow: hidden;
+            position: absolute;
+            z-index: -1;
+        }
+
+        .zoom-wrapper {
+            flex: 1;
+            height: 90vh;
+            overflow: hidden;
+            background-color: #28172C;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+        }
+
+        .map-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            cursor: grab;
+        }
+        .map-container.dragging {
+            cursor: grabbing;
+        }
+
+
+        #mapPlaceholder {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            user-select: none;
+            color: #888;
+            font-size: 1.5em;
+        }
+
+        #map {
+            width: 100%;
+            height: 100%;
+            display: block;
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center;
+            user-select: none;
+        }
+
+        #gridOverlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: transparent;
+            background-image:
+                linear-gradient(to right, rgba(128, 128, 128, 0.3) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(128, 128, 128, 0.3) 1px, transparent 1px);
+            background-size: var(--grid-size, 50px) var(--grid-size, 50px);
+            background-position: var(--grid-offset-x, 0px) var(--grid-offset-y, 0px);
+            pointer-events: none;
+            transform-origin: center center;
+            display: none;
+        }
+
+        #characters {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        .character {
+            position: absolute;
+            width: 50px;
+            height: 50px;
+            cursor: grab;
+            pointer-events: auto;
+            user-select: none;
+            border: 2px solid transparent;
+            box-sizing: border-box;
+        }
+
+        .character.selected {
+            border-color: #a78bfa;
+        }
+
+        .character img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            draggable: false;
+            filter: none;
+        }
+
+        #characterSettings {
+            display: none;
+            flex-direction: column;
+            gap: 10px;
+            padding: 15px;
+            border: 1px solid #5E3F6B;
+            background-color: #36223F;
+            border-radius: 5px;
+           /* margin-top: 15px;  Removed margin top*/
+        }
+
+        #characterSettings.visible {
+            display: flex;
+        }
+
+        #characterSettings label {
+            margin-bottom: 5px;
+        }
+
+        #characterSettings label span {
+            display: inline-block;
+            width: 30px;
+            text-align: right;
+            margin-left: 10px;
+            color: #ccc;
+        }
+
+        #characterSettings select {
+            background-color: #48314D;
+            color: #e0e0e0;
+            border: 1px solid #5E3F6B;
+            padding: 8px;
+            border-radius: 3px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            height: 25px;
+            -webkit-appearance: none;
+            appearance: none;
+            background: #48314D;
+            border-radius: 5px;
+            margin-top: 5px;
+            margin-bottom: 10px;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 15px;
+            height: 15px;
+            background: #a78bfa;
+            border-radius: 50%;
+            cursor: pointer;
+            border: none;
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            width: 15px;
+            height: 15px;
+            background: #a78bfa;
+            border-radius: 50%;
+            cursor: pointer;
+            border: none;
+        }
+
+        #mapRotationValue {
+            color: #ccc;
+        }
+        #gridSettings {
+            display: none;
+            flex-direction: column;
+            gap: 10px;
+            padding: 15px;
+            border: 1px solid #5E3F6B;
+            background-color: #36223F;
+            border-radius: 5px;
+            margin-top: 10px;
+        }
+
+        #gridSettings h3 {
+            margin-top: 0;
+            margin-bottom: 10px;
+            color: #e0e0e0;
+        }
+
+        .checkbox-wrapper {
+            display: block;
+            position: relative;
+            padding-left: 30px;
+            margin-bottom: 12px;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .checkbox-wrapper input {
+            position: absolute;
+            opacity: 0;
+            cursor: pointer;
+            height: 0;
+            width: 0;
+        }
+
+        .checkmark {
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 20px;
+            width: 20px;
+            background-color: #48314D;
+            border: 1px solid #5E3F6B;
+            border-radius: 3px;
+        }
+
+        .checkbox-wrapper:hover input ~ .checkmark {
+            background-color: #5E3F6B;
+        }
+
+        .checkbox-wrapper input:checked ~ .checkmark {
+            background-color: #a78bfa;
+        }
+
+        .checkmark:after {
+            content: "";
+            position: absolute;
+            display: none;
+        }
+
+        .checkbox-wrapper input:checked ~ .checkmark:after {
+            display: block;
+        }
+
+        .checkbox-wrapper .checkmark:after {
+            left: 6px;
+            top: 3px;
+            width: 5px;
+            height: 10px;
+            border: solid #f0f0f0;
+            border-width: 0 3px 3px 0;
+            transform: rotate(45deg);
+        }
+        .header-container {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            gap: 10px;
+            padding: 15px;
+            border: 1px solid #5E3F6B;
+            background-color: #36223F;
+            border-radius: 5px;
+            margin-bottom: 15px;
+        }
+
+        .header-container img {
+            height: 24px;
+        }
+
+        .header-container span {
+            font-size: 1.2em;
+            color: #e0e0e0;
+            font-family: 'Boldonse', sans-serif;
+        }
+        .zoom-buttons {
+            display: flex;
+            flex-direction: column; /* Stack vertically by default */
+            gap: 5px;
+        }
+        /* Mobile Orientation Warning */
+        #orientationWarning {
+            display: none; /* Hidden by default */
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #71368a; /* Changed background color */
+            color: white;
+            flex-direction: column; /* Stack messages vertically */
+            justify-content: center;
+            align-items: center;
+            z-index: 1000; /* Ensure it's on top */
+            text-align: center;
+            font-size: 1.5em;
+            padding: 20px;
+        }
+
+        #orientationWarning p {
+            margin: 5px 0; /* Add some vertical spacing between messages */
+        }
+
+
+        @media (max-width: 768px) and (orientation: portrait) {
+            #orientationWarning {
+                display: flex; /* Show warning in portrait mode on small screens */
+            }
+            .controls, .zoom-wrapper {
+                display: none; /* Hide the main content */
+            }
+        }
+        /* Version Text */
+        .version {
+            text-align: center;
+            font-size: 0.8em;
+            color: #ccc;
+            margin-top: 10px; /* Add some spacing */
+        }
+
+</style>
+</head>
+<body>
+    <!-- Orientation Warning -->
+    <div id="orientationWarning">
+        <p>🔄 Please rotate your device to landscape mode.</p>
+        <p>or</p>
+        <p>💻 Use a larger device to use this application.</p>
+    </div>
+    <div class="controls">
+        <div class="controls-content">
+            <div class="header-container">
+                <img src="logo.svg" alt="Logo" role="img" aria-label="Logo">
+                <span>fm's map</span>
+            </div>
+            <div>
+                <label for="mapUpload" class="upload-button">Upload Map</label>
+                <input type="file" id="mapUpload" accept="image/*">
+            </div>
+            <div>
+                <label for="characterUpload" class="upload-button">Upload Characters</label>
+                <input type="file" id="characterUpload" accept="image/*" multiple>
+            </div>
+            <div>
+                <label for="zoom">Zoom:</label>
+                <div class="zoom-buttons">
+                    <button id="zoomIn">+</button>
+                    <button id="zoomOut">-</button>
+                </div>
+            </div>
+            <div>
+                <label for="mapRotation">Map Rotation (degrees): <span id="mapRotationValue">0</span></label>
+                <input type="range" id="mapRotation" min="0" max="360" value="0" step="1">
+            </div>
+            <div>
+                <label class="checkbox-wrapper">Show Grid
+                    <input type="checkbox" id="showGrid">
+                    <span class="checkmark"></span>
+                </label>
+            </div>
+
+            <div id="characterSettings">
+                <p>No character selected</p>
+            </div>
+
+            <div>
+                <label class="checkbox-wrapper">Show Grid Controls
+                    <input type="checkbox" id="toggleGridControls">
+                    <span class="checkmark"></span>
+                </label>
+                <div id="gridSettings">
+                    <h3>Grid Settings</h3>
+                    <div>
+                        <label for="gridDensity">Grid Density (px):</label>
+                        <input type="number" id="gridDensity" value="50" min="10" step="10">
+                    </div>
+                    <div>
+                        <label for="gridOffsetX">Grid Offset X (px):</label>
+                        <input type="number" id="gridOffsetX" value="0">
+                    </div>
+                    <div>
+                        <label for="gridOffsetY">Grid Offset Y (px):</label>
+                        <input type="number" id="gridOffsetY" value="0">
+                    </div>
+                    <div>
+                        <label for="gridRotation">Grid Rotation (degrees):</label>
+                        <input type="number" id="gridRotation" value="0">
+                    </div>
+                </div>
+            </div>
+            <div>
+                <label for="uploadSave" class="upload-button">Load Save</label>
+                <input type="file" id="uploadSave" accept=".fmap">
+            </div>
+            <div>
+                <button id="saveMapButton">Save Map</button>
+            </div>
+        </div>
+        <div class="version">v1.0</div> <!-- Added Version Text -->
+    </div>
+
+    <div class="zoom-wrapper">
+        <div class="map-container">
+            <p id="mapPlaceholder">Upload a map to start 🗺️</p>
+            <div id="map"></div>
+            <div id="gridOverlay"></div>
+            <div id="characters"></div>
+        </div>
+    </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    // --- DOM Element References ---
+    const controlsDiv = document.querySelector('.controls');
+    const mapUpload = document.getElementById('mapUpload');
+    const characterUpload = document.getElementById('characterUpload');
+    const uploadSaveInput = document.getElementById('uploadSave');
+    const mapDiv = document.getElementById('map');
+    const charactersDiv = document.getElementById('characters');
+    const zoomWrapper = document.querySelector('.zoom-wrapper');
+    const mapContainer = document.querySelector('.map-container');
+    const characterSettingsDiv = document.getElementById('characterSettings');
+    const mapRotationInput = document.getElementById('mapRotation');
+    const mapRotationValueSpan = document.getElementById('mapRotationValue');
+    const showGridCheckbox = document.getElementById('showGrid');
+    const gridOverlay = document.getElementById('gridOverlay');
+    const gridDensityInput = document.getElementById('gridDensity');
+    const gridOffsetXInput = document.getElementById('gridOffsetX');
+    const gridOffsetYInput = document.getElementById('gridOffsetY');
+    const gridRotationInput = document.getElementById('gridRotation');
+    const toggleGridControlsCheckbox = document.getElementById('toggleGridControls');
+    const gridSettingsDiv = document.getElementById('gridSettings');
+    const mapPlaceholder = document.getElementById('mapPlaceholder');
+    const saveMapButton = document.getElementById('saveMapButton');
+    const zoomInButton = document.getElementById('zoomIn'); // Zoom buttons
+    const zoomOutButton = document.getElementById('zoomOut');
+
+    // --- State Variables ---
+    let mapImage = null;
+    let zoomLevel = 1;
+    const ZOOM_SPEED = 0.05;
+    const MIN_ZOOM = 0.5;
+    const MAX_ZOOM = 3;
+    let selectedCharacter = null;
+    let mapRotation = 0;
+    let mapUploaded = false;
+    let panOffsetX = 0;
+    let panOffsetY = 0;
+    let isPanning = false;
+    let panStartX;
+    let panStartY;
+    let mapImageWidth = 0;
+    let mapImageHeight = 0;
+   // let touchStartX = 0; // Removed: No longer needed with multi-touch
+   // let touchStartY = 0;
+    let initialPinchDistance = null; // For pinch-to-zoom
+    let lastZoomLevel = 1;
+
+
+    // --- Utility Functions ---
+
+    // Combined transform function.
+    function updateTransform() {
+        const transform = `translate(${panOffsetX}px, ${panOffsetY}px) scale(${zoomLevel}) rotate(${mapRotation}deg)`;
+        mapDiv.style.transform = transform;
+        charactersDiv.style.transform = transform;
+        gridOverlay.style.transform = `translate(${panOffsetX}px, ${panOffsetY}px) scale(${zoomLevel}) rotate(${gridRotationInput.value}deg)`;
+    }
+      // --- Zoom Functions ---
+    function handleZoom(delta) {
+        const newZoomLevel = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoomLevel + delta));
+
+        // Get the center of the map container (for centering zoom)
+        const rect = mapContainer.getBoundingClientRect();
+        const centerX = rect.width / 2;
+        const centerY = rect.height / 2;
+
+        // Adjust pan offsets to keep the center of the map in the same place
+        panOffsetX -= (centerX / zoomLevel - centerX / newZoomLevel);
+        panOffsetY -= (centerY / zoomLevel - centerY / newZoomLevel);
+
+        zoomLevel = newZoomLevel;
+        updateTransform();
+    }
+
+    // Updates character positions.
+    function updateCharacterPositionsOnResize() {
+        if (!mapImage) return;
+
+        const style = getComputedStyle(mapDiv);
+        const displayedWidth = parseFloat(style.width);
+        const displayedHeight = parseFloat(style.height);
+
+        charactersDiv.querySelectorAll('.character').forEach(character => {
+            const relativeLeft = parseFloat(character.dataset.relativeLeft);
+            const relativeTop = parseFloat(character.dataset.relativeTop);
+
+            if (!isNaN(relativeLeft) && !isNaN(relativeTop)) {
+                const left = relativeLeft * displayedWidth;
+                const top = relativeTop * displayedHeight;
+                character.style.left = `${left}px`;
+                character.style.top = `${top}px`;
+            }
+        });
+        updateTransform();
+    }
+
+
+
+    // Updates the visual transform of a character (scale and rotation).
+    function updateCharacterTransform(character) {
+        const scale = character.dataset.scale || '1';
+        const rotation = character.dataset.rotation || '0';
+        const filter = character.dataset.filter || '';
+        const img = character.querySelector('img');
+        if (img) {
+             img.style.transform = `scale(${scale}) rotate(${rotation}deg)`;
+             img.style.filter = filter;
+        } else {
+            console.warn("No image found within character:", character);
+        }
+    }
+
+    // Makes a character element draggable (now with touch support).
+    function makeDraggable(element) {
+        let offsetX, offsetY;
+        let startX, startY;
+
+        // --- Helper function to get position from either touch or mouse event ---
+        function getPosition(event) {
+            if (event.touches) {
+                // Touch event
+                return { x: event.touches[0].clientX, y: event.touches[0].clientY };
+            } else {
+                // Mouse event
+                return { x: event.clientX, y: event.clientY };
+            }
+        }
+
+        // --- Start Drag (Mouse and Touch) ---
+        function startDrag(event) {
+             // Prevent panning if dragging a character
+            if (event.type === 'touchstart') {
+                isPanning = false; // Disable panning when character drag starts
+            }
+            event.preventDefault();
+            event.stopPropagation();
+
+            const pos = getPosition(event);
+            startX = pos.x;
+            startY = pos.y;
+
+            element.style.cursor = 'grabbing';
+            element.style.zIndex = '10';
+
+
+            // --- **CORRECTED OFFSET CALCULATION** ---
+            const rect = element.getBoundingClientRect();
+            offsetX = (pos.x - rect.left) / zoomLevel;
+            offsetY = (pos.y - rect.top) / zoomLevel;
+
+
+            if (selectedCharacter !== element) {
+                selectCharacter(element);
+            }
+
+            // Add move and end listeners (both mouse and touch)
+            document.addEventListener('mousemove', doDrag);
+            document.addEventListener('touchmove', doDrag, { passive: false });
+            document.addEventListener('mouseup', endDrag);
+            document.addEventListener('touchend', endDrag);
+        }
+
+        // --- Do Drag (Mouse and Touch) ---
+        function doDrag(event) {
+            const pos = getPosition(event);
+            const deltaX = pos.x - startX;
+            const deltaY = pos.y - startY;
+
+            // Apply the deltas, adjusted for zoom
+            element.style.left = `${parseFloat(element.style.left || 0) + deltaX / zoomLevel}px`;
+            element.style.top = `${parseFloat(element.style.top || 0) + deltaY / zoomLevel}px`;
+
+            startX = pos.x;
+            startY = pos.y;
+        }
+
+        // --- End Drag (Mouse and Touch) ---
+        function endDrag(event) {
+            element.style.cursor = 'grab';
+            element.style.zIndex = '1';
+
+            // Remove listeners
+            document.removeEventListener('mousemove', doDrag);
+            document.removeEventListener('touchmove', doDrag, { passive: false });
+            document.removeEventListener('mouseup', endDrag);
+            document.removeEventListener('touchend', endDrag);
+
+            // Store relative position (as percentages)
+             // Use displayed width/height for relative position calculation on drag end
+            const style = getComputedStyle(mapDiv);
+            const displayedWidth = parseFloat(style.width);
+            const displayedHeight = parseFloat(style.height);
+            if (!isNaN(displayedWidth) && !isNaN(displayedHeight) && displayedWidth > 0 && displayedHeight > 0) {
+                element.dataset.relativeLeft = parseFloat(element.style.left) / displayedWidth;
+                element.dataset.relativeTop = parseFloat(element.style.top) / displayedHeight;
+            }
+            updateTransform();
+             // Re-enable panning after character drag ends
+            if (event.type === 'touchend') {
+                setTimeout(() => { isPanning = true; }, 10); // Small delay, as touchend and touchstart might overlap.
+            }
+        }
+
+        // --- Attach Start Listeners (Mouse and Touch) ---
+        element.addEventListener('mousedown', startDrag);
+        element.addEventListener('touchstart', startDrag, { passive: false });
+    }
+
+
+    // Selects a character and populates the character settings panel.
+    function selectCharacter(character) {
+        if (selectedCharacter && selectedCharacter !== character) {
+            selectedCharacter.classList.remove('selected');
+        }
+        selectedCharacter = character;
+        selectedCharacter.classList.add('selected');
+        populateCharacterSettings(character);
+        characterSettingsDiv.classList.add('visible');
+    }
+
+    // Deselects the currently selected character.
+    function deselectCharacter() {
+        if (selectedCharacter) {
+            selectedCharacter.classList.remove('selected');
+            selectedCharacter = null;
+            characterSettingsDiv.classList.remove('visible');
+        }
+        characterSettingsDiv.innerHTML = '<p>No character selected</p>';
+
+    }
+
+    // Populates the character settings panel.
+    function populateCharacterSettings(character) {
+        characterSettingsDiv.innerHTML = '';
+
+        const scaleLabel = document.createElement('label');
+        scaleLabel.textContent = 'Scale: ';
+        const scaleValueSpan = document.createElement('span');
+        scaleValueSpan.textContent = character.dataset.scale || '1';
+        scaleLabel.appendChild(scaleValueSpan);
+
+        const scaleInput = document.createElement('input');
+        scaleInput.type = 'range';
+        scaleInput.min = '0.5';
+        scaleInput.max = '3';
+        scaleInput.step = '0.1';
+        scaleInput.value = character.dataset.scale || '1';
+        scaleInput.addEventListener('input', (e) => {
+            const scale = parseFloat(e.target.value);
+            character.dataset.scale = scale;
+            scaleValueSpan.textContent = scale;
+            updateCharacterTransform(character);
+        });
+
+        characterSettingsDiv.appendChild(scaleLabel);
+        characterSettingsDiv.appendChild(scaleInput);
+
+        const rotationLabel = document.createElement('label');
+        rotationLabel.textContent = 'Rotation (degrees): ';
+        const rotationValueSpan = document.createElement('span');
+        rotationValueSpan.textContent = character.dataset.rotation || '0';
+        rotationLabel.appendChild(rotationValueSpan);
+
+        const rotationInput = document.createElement('input');
+        rotationInput.type = 'range';
+        rotationInput.min = '0';
+        rotationInput.max = '360';
+        rotationInput.step = '1';
+        rotationInput.value = character.dataset.rotation || '0';
+        rotationInput.addEventListener('input', (e) => {
+            const rotation = parseInt(e.target.value);
+            character.dataset.rotation = rotation;
+            rotationValueSpan.textContent = rotation;
+            updateCharacterTransform(character);
+        });
+
+        characterSettingsDiv.appendChild(rotationLabel);
+        characterSettingsDiv.appendChild(rotationInput);
+
+        const filterLabel = document.createElement('label');
+        filterLabel.textContent = 'Color Filter:';
+        const filterSelect = document.createElement('select');
+        filterSelect.innerHTML = `
+            <option value="">None</option>
+            <option value="hue-rotate(90deg)">Green</option>
+            <option value="hue-rotate(180deg)">Cyan</option>
+            <option value="hue-rotate(270deg)">Magenta</option>
+            <option value="grayscale(100%)">Grayscale</option>
+            <option value="sepia(100%)">Sepia</option>
+            <option value="invert(100%)">Invert</option>
+        `;
+        filterSelect.value = character.dataset.filter || '';
+        filterSelect.addEventListener('change', (e) => {
+            character.dataset.filter = e.target.value;
+            updateCharacterTransform(character);
+        });
+
+        characterSettingsDiv.appendChild(filterLabel);
+        characterSettingsDiv.appendChild(filterSelect);
+
+        const deleteButton = document.createElement('button');
+        deleteButton.textContent = 'Delete Character';
+        deleteButton.addEventListener('click', () => {
+            if (confirm("Are you sure you want to delete this character?")) {
+                character.remove();
+                deselectCharacter();
+            }
+        });
+        characterSettingsDiv.appendChild(deleteButton);
+    }
+     // --- Pinch to Zoom Functions ---
+
+    function getDistanceBetweenTouches(event) {
+        const touch1 = event.touches[0];
+        const touch2 = event.touches[1];
+        return Math.sqrt(Math.pow(touch2.clientX - touch1.clientX, 2) + Math.pow(touch2.clientY - touch1.clientY, 2));
+    }
+    function getMidpoint(event) {
+        const touch1 = event.touches[0];
+        const touch2 = event.touches[1];
+        return {
+            x: (touch1.clientX + touch2.clientX) / 2,
+            y: (touch1.clientY + touch2.clientY) / 2
+        };
+    }
+
+
+    function handleTouchStart(event) {
+        if (event.touches.length === 2) {
+            // Two fingers detected, start pinch-to-zoom
+            initialPinchDistance = getDistanceBetweenTouches(event);
+            lastZoomLevel = zoomLevel; //store current zoom level
+            isPanning = false; // Disable panning during pinch-to-zoom
+            event.preventDefault();
+
+        } else if (event.touches.length === 1 && !event.target.closest('.character') && !event.target.closest('button')  && !event.target.closest('input') && !event.target.closest('label')  && !event.target.closest('select')  ) {
+            // Single touch (potential pan)
+            isPanning = true;
+            panStartX = event.touches[0].clientX - panOffsetX;
+            panStartY = event.touches[0].clientY - panOffsetY;
+            mapContainer.classList.add('dragging');
+            event.preventDefault(); // Prevent scrolling
+        }
+    }
+
+    function handleTouchMove(event) {
+        if (event.touches.length === 2 && initialPinchDistance !== null) {
+            // Pinch-to-zoom
+            const currentPinchDistance = getDistanceBetweenTouches(event);
+            const pinchScale = currentPinchDistance / initialPinchDistance;
+            // Calculate the new zoom level based off of the last zoom level
+            let newZoomLevel = lastZoomLevel * pinchScale;
+            newZoomLevel = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, newZoomLevel));
+
+            // Get midpoint of touches to zoom in/out from
+            const midpoint = getMidpoint(event);
+            const rect = mapContainer.getBoundingClientRect();
+            const centerX = midpoint.x - rect.left;
+            const centerY = midpoint.y - rect.top;
+
+            panOffsetX -= (centerX / zoomLevel - centerX / newZoomLevel);
+            panOffsetY -= (centerY / zoomLevel - centerY / newZoomLevel);
+
+            zoomLevel = newZoomLevel; //update global zoom level
+            updateTransform();
+            event.preventDefault();
+        }
+        else if (isPanning && event.touches.length === 1) {
+            // Single-touch pan
+            const touchX = event.touches[0].clientX;
+            const touchY = event.touches[0].clientY;
+            panOffsetX = touchX - panStartX;
+            panOffsetY = touchY - panStartY;
+            updateTransform();
+            event.preventDefault(); // Prevent scrolling
+
+        }
+    }
+
+    function handleTouchEnd(event) {
+        if (event.touches.length < 2) {
+            // Less than two fingers, end pinch-to-zoom
+            initialPinchDistance = null;
+            isPanning = false; // Re-enable panning when pinch-to-zoom ends
+        }
+         if (isPanning)
+        {
+            isPanning = false;
+            mapContainer.classList.remove('dragging');
+            event.preventDefault();
+        }
+    }
+     // --- Event Listeners ---
+
+    // --- Map Upload ---
+    mapUpload.addEventListener('change', (event) => {
+        const file = event.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onload = () => {
+                    mapImageWidth = img.naturalWidth;
+                    mapImageHeight = img.naturalHeight;
+
+                    mapDiv.style.backgroundImage = `url(${e.target.result})`;
+                    mapDiv.style.backgroundSize = 'contain';
+                    mapDiv.style.backgroundRepeat = 'no-repeat';
+                    mapDiv.style.backgroundPosition = 'center';
+                    mapImage = e.target.result;
+                    mapPlaceholder.style.display = 'none';
+                    mapUploaded = true;
+
+                    panOffsetX = 0;  // Reset pan on new map
+                    panOffsetY = 0;  // Reset pan on new map
+                    zoomLevel = 1;   // Reset zoom on new map
+                    updateTransform(); // Apply initial transform
+                    updateCharacterPositionsOnResize(); // update for initial display
+                };
+                img.src = e.target.result;
+            };
+            reader.onerror = () => {
+                console.error("Error reading map file:", reader.error);
+                alert("Failed to load the map image.");
+            };
+            reader.readAsDataURL(file);
+        } else {
+            mapUploaded = false;
+        }
+    });
+
+    // --- Character Upload ---
+    characterUpload.addEventListener('change', (event) => {
+    const files = event.target.files;
+    if (!mapImageWidth || !mapImageHeight) {
+        alert("Please upload a map first.");
+        return;
+    }
+
+    for (const file of files) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const character = document.createElement('div');
+            character.classList.add('character');
+            character.innerHTML = `<img src="${e.target.result}" alt="Character" draggable="false">`;
+            charactersDiv.appendChild(character);
+
+            character.dataset.relativeLeft = "0"; // Top-left corner
+            character.dataset.relativeTop = "0";
+            makeDraggable(character); // Make it draggable *before* positioning
+            updateTransform();      // Then update transforms
+            updateCharacterPositionsOnResize();
+        };
+        reader.onerror = () => {
+            console.error("Error reading character file:", reader.error);
+            alert("Failed to load the character image.");
+        };
+        reader.readAsDataURL(file);
+    }
+    characterUpload.value = ''; // Clear input
+});
+
+    // Zoom (Mouse Wheel) - with mobile touch support and buttons support
+    mapContainer.addEventListener('wheel', (event) => {
+        event.preventDefault();
+        const zoomDelta = event.deltaY > 0 ? -ZOOM_SPEED : ZOOM_SPEED;
+        handleZoom(zoomDelta);
+
+    });
+
+    // Zoom Buttons
+    zoomInButton.addEventListener('click', () => handleZoom(ZOOM_SPEED));
+    zoomOutButton.addEventListener('click', () => handleZoom(-ZOOM_SPEED));
+
+
+    // --- Panning and Zooming (Mouse and Touch) ---
+    mapContainer.addEventListener('touchstart', handleTouchStart, { passive: false });
+    mapContainer.addEventListener('touchmove', handleTouchMove, { passive: false });
+    mapContainer.addEventListener('touchend', handleTouchEnd, { passive: false });
+
+    //Mouse Pan
+    mapContainer.addEventListener('mousedown', (event) => {
+        // Check if the click is on a button, input, or label
+        if (!event.target.closest('.character') && !event.target.closest('button') && !event.target.closest('input') && !event.target.closest('label') && !event.target.closest('select') ) {
+                isPanning = true;
+                panStartX = event.clientX - panOffsetX;
+                panStartY = event.clientY - panOffsetY;
+                mapContainer.classList.add('dragging');
+                event.preventDefault(); // Prevent other touch actions
+        }
+    });
+    document.addEventListener('mousemove', (event) => {
+        if (isPanning) {
+            panOffsetX = event.clientX - panStartX;
+            panOffsetY = event.clientY - panStartY;
+            updateTransform();
+        }
+    });
+    document.addEventListener('mouseup', () => {
+            isPanning = false;
+            mapContainer.classList.remove('dragging');
+    });
+
+
+    // --- Map Rotation ---
+    mapRotationInput.addEventListener('input', () => {
+        mapRotation = parseInt(mapRotationInput.value) || 0;
+        mapRotationValueSpan.textContent = mapRotation;
+        updateTransform();
+    });
+
+    // --- Character Selection ---
+    charactersDiv.addEventListener('click', (event) => {
+        const clickedCharacter = event.target.closest('.character');
+        if (clickedCharacter) {
+            selectCharacter(clickedCharacter);
+            event.stopPropagation(); // Prevent map click
+        }
+    });
+
+    mapDiv.addEventListener('click', deselectCharacter);
+
+    // --- Grid Controls ---
+    showGridCheckbox.addEventListener('change', () => {
+        gridOverlay.style.display = showGridCheckbox.checked ? 'block' : 'none';
+    });
+
+    gridDensityInput.addEventListener('input', () => {
+        gridOverlay.style.setProperty('--grid-size', `${gridDensityInput.value}px`);
+    });
+
+    gridOffsetXInput.addEventListener('input', () => {
+        gridOverlay.style.setProperty('--grid-offset-x', `${gridOffsetXInput.value}px`);
+    });
+
+    gridOffsetYInput.addEventListener('input', () => {
+        gridOverlay.style.setProperty('--grid-offset-y', `${gridOffsetYInput.value}px`);
+    });
+
+    gridRotationInput.addEventListener('input', () => {
+        updateTransform();
+    });
+
+    toggleGridControlsCheckbox.addEventListener('change', () => {
+        gridSettingsDiv.style.display = toggleGridControlsCheckbox.checked ? 'flex' : 'none';
+    });
+
+    // --- Save Functionality ---
+    saveMapButton.addEventListener('click', () => {
+        const saveData = {
+            mapImage: mapImage,
+            mapImageWidth: mapImageWidth,
+            mapImageHeight: mapImageHeight,
+            characters: [],
+            gridSettings: {
+                density: gridDensityInput.value,
+                offsetX: gridOffsetXInput.value,
+                offsetY: gridOffsetYInput.value,
+                rotation: gridRotationInput.value,
+                visible: showGridCheckbox.checked
+            },
+            zoomLevel: zoomLevel,
+            mapRotation: mapRotation,
+            panOffsetX: panOffsetX,
+            panOffsetY: panOffsetY,
+        };
+
+        charactersDiv.querySelectorAll('.character').forEach(character => {
+            const img = character.querySelector('img');
+            const imageSrc = img ? img.src : null;
+            if (imageSrc) {
+                saveData.characters.push({
+                    imageSrc: imageSrc,
+                    relativeLeft: character.dataset.relativeLeft,
+                    relativeTop: character.dataset.relativeTop,
+                    scale: character.dataset.scale,
+                    rotation: character.dataset.rotation,
+                    filter: character.dataset.filter
+                });
+            }
+        });
+
+        try {
+            const jsonString = JSON.stringify(saveData);
+            const filename = `save-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.fmap`;
+            const blob = new Blob([jsonString], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            a.style.display = 'none';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        } catch (error) {
+            console.error("Error saving map data:", error);
+            alert("Failed to save the map.");
+        }
+    });
+
+    // --- Load Functionality ---
+    // REMOVED: Redundant click listener on the label.  The 'change' event is sufficient.
+    // document.querySelector('label[for="uploadSave"]').addEventListener('click', () => {
+    //     uploadSaveInput.click();
+    // });
+
+    uploadSaveInput.addEventListener('change', (event) => {
+        const file = event.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const savedData = JSON.parse(e.target.result);
+
+                    // Restore map
+                    mapImage = savedData.mapImage;
+                    mapImageWidth = savedData.mapImageWidth;
+                    mapImageHeight = savedData.mapImageHeight;
+                    mapDiv.style.backgroundImage = `url(${mapImage})`;
+                    mapDiv.style.backgroundSize = 'contain';
+                    mapDiv.style.backgroundRepeat = 'no-repeat';
+                    mapDiv.style.backgroundPosition = 'center';
+                    mapPlaceholder.style.display = 'none';
+                    mapUploaded = true;
+
+                    // Clear existing characters
+                    charactersDiv.innerHTML = '';
+
+                    // Restore characters
+                    savedData.characters.forEach(charData => {
+                        const character = document.createElement('div');
+                        character.classList.add('character');
+                        character.innerHTML = `<img src="${charData.imageSrc}" alt="Character" draggable="false">`;
+
+                        character.dataset.relativeLeft = charData.relativeLeft;
+                        character.dataset.relativeTop = charData.relativeTop;
+                        character.dataset.scale = charData.scale || '1';
+                        character.dataset.rotation = charData.rotation || '0';
+                        character.dataset.filter = charData.filter || '';
+
+                        updateCharacterTransform(character); // Apply saved transforms
+                        makeDraggable(character);          // Make draggable
+                        charactersDiv.appendChild(character); // Add to the DOM
+                    });
+
+                    // Restore grid settings
+                    gridDensityInput.value = savedData.gridSettings.density;
+                    gridOffsetXInput.value = savedData.gridSettings.offsetX;
+                    gridOffsetYInput.value = savedData.gridSettings.offsetY;
+                    gridRotationInput.value = savedData.gridSettings.rotation;
+                    showGridCheckbox.checked = savedData.gridSettings.visible;
+                    gridOverlay.style.setProperty('--grid-size', `${savedData.gridSettings.density}px`);
+                    gridOverlay.style.setProperty('--grid-offset-x', `${savedData.gridSettings.offsetX}px`);
+                    gridOverlay.style.setProperty('--grid-offset-y', `${savedData.gridSettings.offsetY}px`);
+
+                    // Restore zoom, rotation, and pan
+                    zoomLevel = savedData.zoomLevel;
+                    mapRotation = savedData.mapRotation;
+                    panOffsetX = savedData.panOffsetX || 0; // Use saved offset, or 0 if none
+                    panOffsetY = savedData.panOffsetY || 0; // Use saved offset, or 0 if none
+                    mapRotationInput.value = mapRotation;
+                    mapRotationValueSpan.textContent = mapRotation;
+                    updateTransform();  // Apply transforms
+                    updateCharacterPositionsOnResize(); // and update for displayed size
+
+                } catch (error) {
+                    console.error("Error loading save file:", error);
+                    alert("Could not load save file. It might be corrupted or in an incorrect format.");
+                }
+            };
+            reader.onerror = () => {
+                alert("Failed to read the save file.");
+            };
+            reader.readAsText(file);
+        }
+        uploadSaveInput.value = '';
+    });
+
+    // --- Prevent Unload ---
+    window.addEventListener('beforeunload', (event) => {
+        if (mapUploaded) {
+            event.preventDefault();
+            event.returnValue = ''; // Required for some browsers
+            return 'Are you sure you want to leave? Any unsaved changes will be lost.';
+        }
+    });
+
+    // --- Window Resize Handler --- Removed, no resize logic
+    // window.addEventListener('resize', updateCharacterPositionsOnResize);
+
+    // --- Removed Mobile specific script ---
+});
+</script>
+</body>
+</html>
